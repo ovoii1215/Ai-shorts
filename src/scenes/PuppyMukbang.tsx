@@ -6,27 +6,28 @@ export const PuppyMukbang: React.FC = () => {
   const { fps } = useVideoConfig();
 
   // 30초 전체 타임라인 (900프레임, 30fps)
-  // 슬로우 시네마틱 매크로 줌인 (1.0 -> 1.08)
-  const zoom = interpolate(frame, [0, 900], [1.0, 1.08], {
+  const globalZoom = interpolate(frame, [0, 900], [1.0, 1.08], {
     extrapolateRight: 'clamp',
   });
 
-  // 강아지가 오물오물 씹을 때 볼과 턱이 귀엽게 움직이는 미세 모션
-  const chewCycle = Math.sin(frame * 0.4);
-  const chewScaleY = 1.0 + 0.006 * chewCycle;
-  const chewScaleX = 1.0 - 0.003 * chewCycle;
+  // 5초(150프레임) 주기 먹방 사이클:
+  // 0~45f (1.5s): 한 입 앙! 베어물기 (Bite)
+  // 45~90f (1.5s): 핑크 혓바닥 쏙 내밀고 꿀 핥기 (Lick)
+  // 90~150f (2.0s): 눈 감고 행복하게 오물오물 씹기 (Bliss Chew)
+  const cycleFrame = frame % 150;
 
-  // 베어물기(입 벌리고 앙!)와 오물오물 씹기 교차 연출
-  // 6~9초, 18~21초에 크게 한 입 앙!
-  let biteOpacity = 0;
-  if (frame >= 160 && frame < 280) {
-    if (frame < 180) biteOpacity = interpolate(frame, [160, 180], [0, 1]);
-    else if (frame > 260) biteOpacity = interpolate(frame, [260, 280], [1, 0]);
-    else biteOpacity = 1;
-  } else if (frame >= 520 && frame < 640) {
-    if (frame < 540) biteOpacity = interpolate(frame, [520, 540], [0, 1]);
-    else if (frame > 620) biteOpacity = interpolate(frame, [620, 640], [1, 0]);
-    else biteOpacity = 1;
+  let activeImg = 'images/puppy_mukbang_vertical.png';
+  let chewWarp = 1.0;
+
+  if (cycleFrame < 45) {
+    activeImg = 'images/puppy_mukbang_vertical.png';
+    chewWarp = 1.0 + 0.004 * Math.sin(cycleFrame * 0.4);
+  } else if (cycleFrame < 90) {
+    activeImg = 'images/puppy_frame_lick.png';
+    chewWarp = 1.0 + 0.003 * Math.sin((cycleFrame - 45) * 0.5);
+  } else {
+    activeImg = 'images/puppy_frame_chew_bliss.png';
+    chewWarp = 1.0 + 0.007 * Math.sin((cycleFrame - 90) * 0.45);
   }
 
   return (
@@ -39,38 +40,21 @@ export const PuppyMukbang: React.FC = () => {
         position: 'relative',
       }}
     >
-      {/* 연지 님이 직접 생성해서 보낸 30초 고음질 ASMR 사운드 */}
+      {/* 30초 전용 ASMR 사운드 */}
       <Audio src={staticFile('audio/puppy_asmr.wav')} />
 
-      {/* 1. 베이스 레이어: 꿀 젤리 오물오물 씹는 귀여운 비숑 */}
+      {/* 살아 숨 쉬는 강아지 애니메이션 레이어 */}
       <div
         style={{
           position: 'absolute',
           width: '100%',
           height: '100%',
-          transform: `scale(${zoom * chewScaleX}, ${zoom * chewScaleY})`,
+          transform: `scale(${globalZoom * chewWarp})`,
           transformOrigin: '50% 48%',
         }}
       >
         <Img
-          src={staticFile('images/puppy_mukbang_chewing.png')}
-          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-        />
-      </div>
-
-      {/* 2. 앙! 베어무는 순간 레이어 (페이드 전환) */}
-      <div
-        style={{
-          position: 'absolute',
-          width: '100%',
-          height: '100%',
-          opacity: biteOpacity,
-          transform: `scale(${zoom})`,
-          transformOrigin: '50% 48%',
-        }}
-      >
-        <Img
-          src={staticFile('images/puppy_mukbang_vertical.png')}
+          src={staticFile(activeImg)}
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
         />
       </div>
